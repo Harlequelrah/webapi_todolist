@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using webapi_todolist.Models;
 using webapi_todolist.Data;
+using webapi_todolist.Services;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 
 namespace webapi_todolist.Controllers
 {
@@ -14,15 +17,63 @@ namespace webapi_todolist.Controllers
     public class TodoController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        public TodoController(ApplicationDbContext context)
+        private readonly JwtService _jwtService;
+        private readonly IConfiguration _configuration;
+
+        public TodoController(ApplicationDbContext context,IConfiguration configuration,JwtService jwtService)
         {
             _context = context;
+            _configuration = configuration;
+            _jwtService = jwtService;
             if (_context.TodoItems.Count() == 0)
             {
                 _context.TodoItems.Add(new TodoItem { Title = "First Todo", IsCompleted = false });
                 _context.SaveChanges();
             }
         }
+        [HttpPost("register")]
+        public async Task<IActionResult> Register(User user)
+        {
+            if (ModelState.IsValid)
+            {
+                // Vérifiez si l'utilisateur existe déjà
+                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == user.Username);
+                if (existingUser != null)
+                {
+                    return BadRequest("Ce nom d'utilisateur est déjà utilisé.");
+                }
+
+                // Ajoutez l'utilisateur à la base de données
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                // Générez un jeton JWT pour l'utilisateur nouvellement inscrit
+                var token = _jwtService.GenerateToken(user);
+
+                return Ok(new { Token = token });
+            }
+
+            return BadRequest(ModelState);
+        }
+
+        // POST: api/auth/login
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(User user)
+        {
+            var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == user.Username && u.Password == user.Password);
+
+            if (existingUser != null)
+            {
+                // Générez un jeton JWT pour l'utilisateur authentifié
+                var token = _jwtService.GenerateToken(existingUser);
+
+                return Ok(new { Token = token });
+            }
+
+            return Unauthorized("Nom d'utilisateur ou mot de passe incorrect.");
+        }
+
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TodoItem>>> GetTodoItems()
         {
@@ -42,7 +93,7 @@ namespace webapi_todolist.Controllers
         [HttpPost]
         public async Task<ActionResult<TodoItem>> CreateTodoItem(TodoItem todoItem)
         {
-            todoItem.Id = 0; 
+            todoItem.Id = 0;
             _context.TodoItems.Add(todoItem);
             await _context.SaveChangesAsync();
             return CreatedAtAction("GetTodoItem", new { id = todoItem.Id }, todoItem);
@@ -74,6 +125,7 @@ namespace webapi_todolist.Controllers
             return NoContent();
 
         }
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTodoItem(int id)
         {
