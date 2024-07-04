@@ -1,0 +1,25 @@
+# Ignore les fichiers générés par Visual Studio
+.vs/
+
+# Ignore les fichiers de build
+bin/
+obj/
+
+# Ignore les fichiers de configuration utilisateur
+*.user
+
+# Ignore les fichiers de logs et de sauvegarde
+*.log
+*.bak
+
+# Ignore les fichiers de packages NuGet
+*.nuget.props
+*.paket.props
+*.paket.targets
+packages/
+
+# Ignore les fichiers de sauvegarde de test
+TestResults/
+
+# Ignore les fichiers temporaires
+[Tt]emp/
