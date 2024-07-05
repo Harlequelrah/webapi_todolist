@@ -17,60 +17,16 @@ namespace webapi_todolist.Controllers
     public class TodoController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        private readonly JwtService _jwtService;
-        private readonly IConfiguration _configuration;
 
-        public TodoController(ApplicationDbContext context,IConfiguration configuration,JwtService jwtService)
+
+        public TodoController(ApplicationDbContext context)
         {
             _context = context;
-            _configuration = configuration;
-            _jwtService = jwtService;
             if (_context.TodoItems.Count() == 0)
             {
                 _context.TodoItems.Add(new TodoItem { Title = "First Todo", IsCompleted = false });
                 _context.SaveChanges();
             }
-        }
-        [HttpPost("register")]
-        public async Task<IActionResult> Register(User user)
-        {
-            if (ModelState.IsValid)
-            {
-                // Vérifiez si l'utilisateur existe déjà
-                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == user.Username);
-                if (existingUser != null)
-                {
-                    return BadRequest("Ce nom d'utilisateur est déjà utilisé.");
-                }
-
-                // Ajoutez l'utilisateur à la base de données
-                _context.Users.Add(user);
-                await _context.SaveChangesAsync();
-
-                // Générez un jeton JWT pour l'utilisateur nouvellement inscrit
-                var token = _jwtService.GenerateToken(user);
-
-                return Ok(new { Token = token });
-            }
-
-            return BadRequest(ModelState);
-        }
-
-        // POST: api/auth/login
-        [HttpPost("login")]
-        public async Task<IActionResult> Login(User user)
-        {
-            var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == user.Username && u.Password == user.Password);
-
-            if (existingUser != null)
-            {
-                // Générez un jeton JWT pour l'utilisateur authentifié
-                var token = _jwtService.GenerateToken(existingUser);
-
-                return Ok(new { Token = token });
-            }
-
-            return Unauthorized("Nom d'utilisateur ou mot de passe incorrect.");
         }
 
 
@@ -99,6 +55,7 @@ namespace webapi_todolist.Controllers
             return CreatedAtAction("GetTodoItem", new { id = todoItem.Id }, todoItem);
 
         }
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTodoItem(int id, TodoItem todoItem)
         {

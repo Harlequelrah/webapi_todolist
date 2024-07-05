@@ -27,7 +27,7 @@ public class JwtService
                 new Claim(ClaimTypes.Name, user.Username),
                 // Ajoutez d'autres claims selon vos besoins
             }),
-            Expires = DateTime.UtcNow.AddHours(1), // Durée de validité d'une heure (modifiable selon vos préférences)
+            Expires = DateTime.UtcNow.AddDays(3), 
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
             Audience = _configuration["Jwt:Audience"],
             Issuer = _configuration["Jwt:Issuer"]
