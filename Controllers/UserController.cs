@@ -26,30 +26,33 @@ namespace webapi_todolist.Controllers
             _configuration = configuration;
             _jwtService = jwtService;
         }
-        [HttpPost("register")]
-        public async Task<IActionResult> Register(User user)
+    [HttpPost("register")]
+public async Task<IActionResult> Register(User user)
+{
+    if (ModelState.IsValid)
+    {
+        // Vérifiez si l'utilisateur existe déjà
+        var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == user.Username);
+        if (existingUser != null)
         {
-            if (ModelState.IsValid)
-            {
-                // Vérifiez si l'utilisateur existe déjà
-                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == user.Username);
-                if (existingUser != null)
-                {
-                    return BadRequest("Ce nom d'utilisateur est déjà utilisé.");
-                }
-
-                // Ajoutez l'utilisateur à la base de données
-                _context.Users.Add(user);
-                await _context.SaveChangesAsync();
-
-                // Générez un jeton JWT pour l'utilisateur nouvellement inscrit
-                var token = _jwtService.GenerateToken(user);
-
-                return Ok(new { Token = token });
-            }
-
-            return BadRequest(ModelState);
+            return BadRequest("Ce nom d'utilisateur est déjà utilisé.");
         }
+
+        // Ajoutez l'utilisateur à la base de données
+        user.RefreshToken = _jwtService.GenerateRefreshToken(); // Génère un refresh token
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7); // Durée de validité du refresh token
+
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        // Générez un jeton JWT pour l'utilisateur nouvellement inscrit
+        var token = _jwtService.GenerateToken(user);
+
+        return Ok(new { Token = token });
+    }
+
+    return BadRequest(ModelState);
+}
 
         // POST: api/auth/login
         [HttpPost("login")]
@@ -61,12 +64,36 @@ namespace webapi_todolist.Controllers
             {
                 // Générez un jeton JWT pour l'utilisateur authentifié
                 var token = _jwtService.GenerateToken(existingUser);
+                var refreshToken = _jwtService.GenerateRefreshToken();
+                _jwtService.SaveRefreshToken(user, refreshToken);
 
                 return Ok(new { Token = token });
             }
 
             return Unauthorized("Nom d'utilisateur ou mot de passe incorrect.");
         }
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshRequest refreshRequest)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshRequest.RefreshToken);
+            if (user == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+            {
+                return Unauthorized("Invalid refresh token.");
+            }
+
+            // Génération du nouveau token
+            var newToken = _jwtService.GenerateToken(user);
+            var newRefreshToken = _jwtService.GenerateRefreshToken();
+            _jwtService.SaveRefreshToken(user, newRefreshToken);
+
+            return Ok(new { Token = newToken, RefreshToken = newRefreshToken });
+        }
+
+        public class RefreshRequest
+        {
+            public string RefreshToken { get; set; }
+        }
+
         [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()

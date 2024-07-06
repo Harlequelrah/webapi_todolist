@@ -11,9 +11,14 @@ namespace webapi_todolist.Models
         [Required]
         public string Username { get; set; }
 
-        
+
         [Required]
         public string Password { get; set; }
+
+        [JsonIgnore]
+        public string? RefreshToken { get; set; }
+        [JsonIgnore]
+        public DateTime? RefreshTokenExpiryTime { get; set; }
 
         // Autres propriétés si nécessaires
     }
