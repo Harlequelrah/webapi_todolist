@@ -78,6 +78,21 @@ namespace webapi_todolist.Controllers
 
             return Unauthorized("Nom d'utilisateur ou mot de passe incorrect.");
         }
+        [Authorize]
+        [HttpGet("get-refresh-token")]
+        public async Task<IActionResult> GetRefreshToken()
+        {
+            var username = User.Identity.Name;
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == username);
+
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            return Ok(user.RefreshToken);
+        }
+
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshRequest refreshRequest)
         {
@@ -92,7 +107,7 @@ namespace webapi_todolist.Controllers
             var newRefreshToken = _jwtService.GenerateRefreshToken();
             _jwtService.SaveRefreshToken(user, newRefreshToken);
 
-            return Ok(new { Token = newToken, RefreshToken = newRefreshToken });
+            return Ok(new { Token = newToken });
         }
 
         public class RefreshRequest

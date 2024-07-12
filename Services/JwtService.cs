@@ -51,8 +51,8 @@ namespace webapi_todolist.Services
 
         public void SaveRefreshToken(User user, string refreshToken)
         {
-            user.RefreshToken = refreshToken;
             user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7); // Durée de validité du refresh token
+            user.RefreshToken = refreshToken;
             _context.SaveChanges();
         }
     }
