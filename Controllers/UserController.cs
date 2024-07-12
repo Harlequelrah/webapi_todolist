@@ -26,33 +26,39 @@ namespace webapi_todolist.Controllers
             _configuration = configuration;
             _jwtService = jwtService;
         }
-    [HttpPost("register")]
-public async Task<IActionResult> Register(User user)
-{
-    if (ModelState.IsValid)
-    {
-        // Vérifiez si l'utilisateur existe déjà
-        var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == user.Username);
-        if (existingUser != null)
+        [HttpPost("register")]
+        public async Task<IActionResult> Register(User user)
         {
-            return BadRequest("Ce nom d'utilisateur est déjà utilisé.");
+            if (ModelState.IsValid)
+            {
+                // Vérifiez si l'utilisateur existe déjà
+                var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Username == user.Username);
+                if (existingUser != null)
+                {
+                    return BadRequest(new
+                    {
+                        errors = new Dictionary<string, string[]>
+                        {
+                            { "username", new[] { "Ce nom d'utilisateur est déjà utilisé." } }
+                        }
+                    });
+                }
+
+                // Ajoutez l'utilisateur à la base de données
+                user.RefreshToken = _jwtService.GenerateRefreshToken(); // Génère un refresh token
+                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7); // Durée de validité du refresh token
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                // Générez un jeton JWT pour l'utilisateur nouvellement inscrit
+                var token = _jwtService.GenerateToken(user);
+
+                return Ok(new { Token = token });
+            }
+
+            return BadRequest(ModelState);
         }
-
-        // Ajoutez l'utilisateur à la base de données
-        user.RefreshToken = _jwtService.GenerateRefreshToken(); // Génère un refresh token
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7); // Durée de validité du refresh token
-
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
-
-        // Générez un jeton JWT pour l'utilisateur nouvellement inscrit
-        var token = _jwtService.GenerateToken(user);
-
-        return Ok(new { Token = token });
-    }
-
-    return BadRequest(ModelState);
-}
 
         // POST: api/auth/login
         [HttpPost("login")]
